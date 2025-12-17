@@ -1,0 +1,24 @@
+name: Trigger Claude Code Session
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # 02:00 UTC daily
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t claude-trigger .
+
+      - name: Run container
+        env:
+          CLAUDE_STATE_TGZ_B64: ${{ secrets.CLAUDE_STATE_TGZ_B64 }}
+        run: docker run --rm -e CLAUDE_STATE_TGZ_B64 claude-trigger
+
+
