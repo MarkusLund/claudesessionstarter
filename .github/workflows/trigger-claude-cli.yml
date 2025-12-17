@@ -2,15 +2,19 @@ name: Trigger Claude Code Session
 
 on:
   schedule:
-    # CET candidates (winter)
-    - cron: "0 4 * * *" # 05:00 Norway (CET)
-    - cron: "0 9 * * *" # 10:00 Norway (CET)
-    - cron: "0 14 * * *" # 15:00 Norway (CET)
+    # CET candidates (winter) - Monday to Wednesday, Friday to Sunday (excluding Thursday)
+    - cron: "0 4 * * 0-3,5-6" # 05:00 Norway (CET)
+    - cron: "0 9 * * 0-3,5-6" # 10:00 Norway (CET)
+    - cron: "0 14 * * 0-3,5-6" # 15:00 Norway (CET)
 
-    # CEST candidates (summer)
-    - cron: "0 3 * * *" # 05:00 Norway (CEST)
-    - cron: "0 8 * * *" # 10:00 Norway (CEST)
-    - cron: "0 13 * * *" # 15:00 Norway (CEST)
+    # CEST candidates (summer) - Monday to Wednesday, Friday to Sunday (excluding Thursday)
+    - cron: "0 3 * * 0-3,5-6" # 05:00 Norway (CEST)
+    - cron: "0 8 * * 0-3,5-6" # 10:00 Norway (CEST)
+    - cron: "0 13 * * 0-3,5-6" # 15:00 Norway (CEST)
+
+    # Thursday early reset (09:00 Norway time) - ONLY trigger on Thursday
+    - cron: "0 8 * * 4" # 09:00 Norway (CET) - Thursday
+    - cron: "0 7 * * 4" # 09:00 Norway (CEST) - Thursday
 
   workflow_dispatch:
 
@@ -52,6 +56,7 @@ jobs:
           # Current UTC hour (00–23)
           UTC_HOUR=$(date -u +%H)
           UTC_DATETIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          DAY_OF_WEEK=$(TZ=Europe/Oslo date +%u) # 1=Monday, 4=Thursday, 7=Sunday
 
           # Timezone offset for Europe/Oslo (+1 or +2)
           OSLO_OFFSET=$(TZ=Europe/Oslo date +%z)
@@ -61,6 +66,7 @@ jobs:
           echo "📅 Current Oslo time: $OSLO_DATETIME"
           echo "🌍 Oslo timezone offset: $OSLO_OFFSET"
           echo "⏰ UTC hour: $UTC_HOUR"
+          echo "📆 Day of week (Oslo): $DAY_OF_WEEK (4=Thursday)"
           echo ""
 
           RUN=false
@@ -70,22 +76,44 @@ jobs:
           if [[ "$OSLO_OFFSET" == "+0100" ]]; then
             # CET (winter)
             SEASON="CET (Winter)"
-            echo "❄️  Currently in CET (Winter) - checking UTC hours 04, 09, 14"
-            if [[ "$UTC_HOUR" == "04" || "$UTC_HOUR" == "09" || "$UTC_HOUR" == "14" ]]; then
-              RUN=true
-              REASON="UTC hour $UTC_HOUR matches CET schedule (05:00, 10:00, or 15:00 Norway time)"
+            if [[ "$DAY_OF_WEEK" == "4" ]]; then
+              echo "📅 Thursday detected - ONLY running 09:00 Norway time trigger (UTC 08)"
+              echo "❄️  Currently in CET (Winter) - checking UTC hour 08 only"
+              if [[ "$UTC_HOUR" == "08" ]]; then
+                RUN=true
+                REASON="UTC hour $UTC_HOUR matches Thursday 09:00 Norway time (CET) - early window reset"
+              else
+                REASON="UTC hour $UTC_HOUR does not match Thursday schedule (need 08 for 09:00 Norway time). Regular triggers (05:00, 10:00, 15:00) are disabled on Thursdays."
+              fi
             else
-              REASON="UTC hour $UTC_HOUR does not match CET schedule (need 04, 09, or 14)"
+              echo "❄️  Currently in CET (Winter) - checking UTC hours 04, 09, 14"
+              if [[ "$UTC_HOUR" == "04" || "$UTC_HOUR" == "09" || "$UTC_HOUR" == "14" ]]; then
+                RUN=true
+                REASON="UTC hour $UTC_HOUR matches CET schedule (05:00, 10:00, or 15:00 Norway time)"
+              else
+                REASON="UTC hour $UTC_HOUR does not match CET schedule (need 04, 09, or 14)"
+              fi
             fi
           elif [[ "$OSLO_OFFSET" == "+0200" ]]; then
             # CEST (summer)
             SEASON="CEST (Summer)"
-            echo "☀️  Currently in CEST (Summer) - checking UTC hours 03, 08, 13"
-            if [[ "$UTC_HOUR" == "03" || "$UTC_HOUR" == "08" || "$UTC_HOUR" == "13" ]]; then
-              RUN=true
-              REASON="UTC hour $UTC_HOUR matches CEST schedule (05:00, 10:00, or 15:00 Norway time)"
+            if [[ "$DAY_OF_WEEK" == "4" ]]; then
+              echo "📅 Thursday detected - ONLY running 09:00 Norway time trigger (UTC 07)"
+              echo "☀️  Currently in CEST (Summer) - checking UTC hour 07 only"
+              if [[ "$UTC_HOUR" == "07" ]]; then
+                RUN=true
+                REASON="UTC hour $UTC_HOUR matches Thursday 09:00 Norway time (CEST) - early window reset"
+              else
+                REASON="UTC hour $UTC_HOUR does not match Thursday schedule (need 07 for 09:00 Norway time). Regular triggers (05:00, 10:00, 15:00) are disabled on Thursdays."
+              fi
             else
-              REASON="UTC hour $UTC_HOUR does not match CEST schedule (need 03, 08, or 13)"
+              echo "☀️  Currently in CEST (Summer) - checking UTC hours 03, 08, 13"
+              if [[ "$UTC_HOUR" == "03" || "$UTC_HOUR" == "08" || "$UTC_HOUR" == "13" ]]; then
+                RUN=true
+                REASON="UTC hour $UTC_HOUR matches CEST schedule (05:00, 10:00, or 15:00 Norway time)"
+              else
+                REASON="UTC hour $UTC_HOUR does not match CEST schedule (need 03, 08, or 13)"
+              fi
             fi
           else
             REASON="Unexpected timezone offset: $OSLO_OFFSET"
