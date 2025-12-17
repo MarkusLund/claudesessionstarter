@@ -2,23 +2,117 @@ name: Trigger Claude Code Session
 
 on:
   schedule:
-    - cron: '0 2 * * *' # 02:00 UTC daily
+    # CET candidates (winter)
+    - cron: "0 4 * * *" # 05:00 Norway (CET)
+    - cron: "0 9 * * *" # 10:00 Norway (CET)
+    - cron: "0 14 * * *" # 15:00 Norway (CET)
+
+    # CEST candidates (summer)
+    - cron: "0 3 * * *" # 05:00 Norway (CEST)
+    - cron: "0 8 * * *" # 10:00 Norway (CEST)
+    - cron: "0 13 * * *" # 15:00 Norway (CEST)
+
   workflow_dispatch:
 
 jobs:
   trigger:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - name: Decide if this run should execute (CET vs CEST)
+        id: dst-check
+        shell: bash
+        run: |
+          set -e
 
-      - name: Build Docker image
-        run: docker build -t claude-trigger .
+          echo "============================================"
+          echo "🕐 DST Check for Norway (Europe/Oslo)"
+          echo "============================================"
+          
+          # Current UTC hour (00–23)
+          UTC_HOUR=$(date -u +%H)
+          UTC_DATETIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          
+          # Timezone offset for Europe/Oslo (+1 or +2)
+          OSLO_OFFSET=$(TZ=Europe/Oslo date +%z)
+          OSLO_DATETIME=$(TZ=Europe/Oslo date '+%Y-%m-%d %H:%M:%S %Z')
+          
+          echo "📅 Current UTC time: $UTC_DATETIME"
+          echo "📅 Current Oslo time: $OSLO_DATETIME"
+          echo "🌍 Oslo timezone offset: $OSLO_OFFSET"
+          echo "⏰ UTC hour: $UTC_HOUR"
+          echo ""
 
-      - name: Run container
-        env:
-          CLAUDE_STATE_TGZ_B64: ${{ secrets.CLAUDE_STATE_TGZ_B64 }}
-        run: docker run --rm -e CLAUDE_STATE_TGZ_B64 claude-trigger
+          RUN=false
+          SEASON=""
+          REASON=""
 
+          if [[ "$OSLO_OFFSET" == "+0100" ]]; then
+            # CET (winter)
+            SEASON="CET (Winter)"
+            echo "❄️  Currently in CET (Winter) - checking UTC hours 04, 09, 14"
+            if [[ "$UTC_HOUR" == "04" || "$UTC_HOUR" == "09" || "$UTC_HOUR" == "14" ]]; then
+              RUN=true
+              REASON="UTC hour $UTC_HOUR matches CET schedule (05:00, 10:00, or 15:00 Norway time)"
+            else
+              REASON="UTC hour $UTC_HOUR does not match CET schedule (need 04, 09, or 14)"
+            fi
+          elif [[ "$OSLO_OFFSET" == "+0200" ]]; then
+            # CEST (summer)
+            SEASON="CEST (Summer)"
+            echo "☀️  Currently in CEST (Summer) - checking UTC hours 03, 08, 13"
+            if [[ "$UTC_HOUR" == "03" || "$UTC_HOUR" == "08" || "$UTC_HOUR" == "13" ]]; then
+              RUN=true
+              REASON="UTC hour $UTC_HOUR matches CEST schedule (05:00, 10:00, or 15:00 Norway time)"
+            else
+              REASON="UTC hour $UTC_HOUR does not match CEST schedule (need 03, 08, or 13)"
+            fi
+          else
+            REASON="Unexpected timezone offset: $OSLO_OFFSET"
+          fi
 
+          echo ""
+          echo "============================================"
+          if [[ "$RUN" == "true" ]]; then
+            echo "✅ DECISION: Will execute Claude session"
+          else
+            echo "⏭️  DECISION: Will skip Claude session"
+          fi
+          echo "📝 Season: $SEASON"
+          echo "📝 Reason: $REASON"
+          echo "============================================"
+          echo ""
+
+          echo "run=$RUN" >> "$GITHUB_OUTPUT"
+          echo "season=$SEASON" >> "$GITHUB_OUTPUT"
+          echo "reason=$REASON" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if wrong season
+        if: steps.dst-check.outputs.run != 'true'
+        run: |
+          echo "⏭️  Skipping Claude session execution"
+          echo "Season: ${{ steps.dst-check.outputs.season }}"
+          echo "Reason: ${{ steps.dst-check.outputs.reason }}"
+
+      - name: Trigger Claude Code session
+        if: steps.dst-check.outputs.run == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: "hi, only answer hi"
+          claude_args: '--allowed-tools "" --max-turns 1'
+      
+      - name: Session Summary
+        if: always()
+        run: |
+          echo "============================================"
+          echo "📊 Workflow Execution Summary"
+          echo "============================================"
+          echo "Season: ${{ steps.dst-check.outputs.season }}"
+          echo "Decision: ${{ steps.dst-check.outputs.run == 'true' && '✅ Executed' || '⏭️  Skipped' }}"
+          echo "Reason: ${{ steps.dst-check.outputs.reason }}"
+          echo "Trigger: ${{ github.event_name }}"
+          echo "============================================"
