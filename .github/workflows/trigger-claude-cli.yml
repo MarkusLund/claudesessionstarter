@@ -24,11 +24,27 @@ jobs:
     steps:
       - name: Decide if this run should execute (CET vs CEST)
         id: dst-check
-        if: github.event_name == 'schedule'
         shell: bash
         run: |
           set -e
 
+          # For manual triggers, always run
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "============================================"
+            echo "🚀 Manual Trigger Detected"
+            echo "============================================"
+            echo "This is a manual workflow dispatch."
+            echo "Skipping DST check and allowing execution."
+            echo "============================================"
+            echo ""
+            
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "season=Manual Trigger" >> "$GITHUB_OUTPUT"
+            echo "reason=Manually triggered - DST check bypassed" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # For scheduled runs, check DST
           echo "============================================"
           echo "🕐 DST Check for Norway (Europe/Oslo)"
           echo "============================================"
@@ -92,16 +108,14 @@ jobs:
           echo "reason=$REASON" >> "$GITHUB_OUTPUT"
 
       - name: Skip if wrong season (scheduled runs only)
-        if: github.event_name == 'schedule' && steps.dst-check.outputs.run != 'true'
+        if: steps.dst-check.outputs.run != 'true'
         run: |
-          echo "⏭️  Skipping Claude session execution (scheduled run and outside allowed window)"
+          echo "⏭️  Skipping Claude session execution"
           echo "Season: ${{ steps.dst-check.outputs.season }}"
           echo "Reason: ${{ steps.dst-check.outputs.reason }}"
 
       - name: Trigger Claude Code session
-        # For manual runs (workflow_dispatch), always run.
-        # For scheduled runs, only run when dst-check says so.
-        if: github.event_name != 'schedule' || steps.dst-check.outputs.run == 'true'
+        if: steps.dst-check.outputs.run == 'true'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -114,8 +128,8 @@ jobs:
           echo "============================================"
           echo "📊 Workflow Execution Summary"
           echo "============================================"
-          echo "Season: ${{ steps.dst-check.outputs.season }}"
+          echo "Season: ${{ steps.dst-check.outputs.season || 'N/A' }}"
           echo "Decision: ${{ steps.dst-check.outputs.run == 'true' && '✅ Executed' || '⏭️  Skipped' }}"
-          echo "Reason: ${{ steps.dst-check.outputs.reason }}"
+          echo "Reason: ${{ steps.dst-check.outputs.reason || 'No reason provided' }}"
           echo "Trigger: ${{ github.event_name }}"
           echo "============================================"
