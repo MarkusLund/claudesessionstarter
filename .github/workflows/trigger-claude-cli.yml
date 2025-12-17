@@ -31,15 +31,15 @@ jobs:
           echo "============================================"
           echo "🕐 DST Check for Norway (Europe/Oslo)"
           echo "============================================"
-          
+
           # Current UTC hour (00–23)
           UTC_HOUR=$(date -u +%H)
           UTC_DATETIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          
+
           # Timezone offset for Europe/Oslo (+1 or +2)
           OSLO_OFFSET=$(TZ=Europe/Oslo date +%z)
           OSLO_DATETIME=$(TZ=Europe/Oslo date '+%Y-%m-%d %H:%M:%S %Z')
-          
+
           echo "📅 Current UTC time: $UTC_DATETIME"
           echo "📅 Current Oslo time: $OSLO_DATETIME"
           echo "🌍 Oslo timezone offset: $OSLO_OFFSET"
@@ -104,7 +104,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: "hi, only answer hi"
           claude_args: '--allowed-tools "" --max-turns 1'
-      
+
       - name: Session Summary
         if: always()
         run: |
