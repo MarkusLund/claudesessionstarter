@@ -24,6 +24,7 @@ jobs:
     steps:
       - name: Decide if this run should execute (CET vs CEST)
         id: dst-check
+        if: github.event_name == 'schedule'
         shell: bash
         run: |
           set -e
@@ -90,15 +91,17 @@ jobs:
           echo "season=$SEASON" >> "$GITHUB_OUTPUT"
           echo "reason=$REASON" >> "$GITHUB_OUTPUT"
 
-      - name: Skip if wrong season
-        if: steps.dst-check.outputs.run != 'true'
+      - name: Skip if wrong season (scheduled runs only)
+        if: github.event_name == 'schedule' && steps.dst-check.outputs.run != 'true'
         run: |
-          echo "⏭️  Skipping Claude session execution"
+          echo "⏭️  Skipping Claude session execution (scheduled run and outside allowed window)"
           echo "Season: ${{ steps.dst-check.outputs.season }}"
           echo "Reason: ${{ steps.dst-check.outputs.reason }}"
 
       - name: Trigger Claude Code session
-        if: steps.dst-check.outputs.run == 'true'
+        # For manual runs (workflow_dispatch), always run.
+        # For scheduled runs, only run when dst-check says so.
+        if: github.event_name != 'schedule' || steps.dst-check.outputs.run == 'true'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
