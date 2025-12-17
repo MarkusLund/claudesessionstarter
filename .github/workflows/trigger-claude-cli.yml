@@ -120,7 +120,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: "hi, only answer hi"
-          claude_args: '--allowed-tools "" --max-turns 1'
+          claude_args: '--allowed-tools "" --max-turns 1 --max-tokens 100 --model claude-haiku-4-5-20251001'
 
       - name: Session Summary
         if: always()
