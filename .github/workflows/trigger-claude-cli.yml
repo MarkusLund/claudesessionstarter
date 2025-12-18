@@ -12,9 +12,9 @@ on:
     - cron: "0 8 * * 0-3,5-6" # 10:00 Norway (CEST)
     - cron: "0 13 * * 0-3,5-6" # 15:00 Norway (CEST)
 
-    # Thursday early reset (09:00 Norway time) - ONLY trigger on Thursday
-    - cron: "0 8 * * 4" # 09:00 Norway (CET) - Thursday
-    - cron: "0 7 * * 4" # 09:00 Norway (CEST) - Thursday
+    # Thursday early start (04:00 Norway time) - ONLY trigger on Thursday
+    - cron: "0 3 * * 4" # 04:00 Norway (CET) - Thursday
+    - cron: "0 2 * * 4" # 04:00 Norway (CEST) - Thursday
 
   workflow_dispatch:
 
@@ -77,13 +77,13 @@ jobs:
             # CET (winter)
             SEASON="CET (Winter)"
             if [[ "$DAY_OF_WEEK" == "4" ]]; then
-              echo "📅 Thursday detected - ONLY running 09:00 Norway time trigger (UTC 08)"
-              echo "❄️  Currently in CET (Winter) - checking UTC hour 08 only"
-              if [[ "$UTC_HOUR" == "08" ]]; then
+              echo "📅 Thursday detected - ONLY running 04:00 Norway time trigger (UTC 03)"
+              echo "❄️  Currently in CET (Winter) - checking UTC hour 03 only"
+              if [[ "$UTC_HOUR" == "03" ]]; then
                 RUN=true
-                REASON="UTC hour $UTC_HOUR matches Thursday 09:00 Norway time (CET) - early window reset"
+                REASON="UTC hour $UTC_HOUR matches Thursday 04:00 Norway time (CET) - early window start"
               else
-                REASON="UTC hour $UTC_HOUR does not match Thursday schedule (need 08 for 09:00 Norway time). Regular triggers (05:00, 10:00, 15:00) are disabled on Thursdays."
+                REASON="UTC hour $UTC_HOUR does not match Thursday schedule (need 03 for 04:00 Norway time). Regular triggers (05:00, 10:00, 15:00) are disabled on Thursdays."
               fi
             else
               echo "❄️  Currently in CET (Winter) - checking UTC hours 04, 09, 14"
@@ -98,13 +98,13 @@ jobs:
             # CEST (summer)
             SEASON="CEST (Summer)"
             if [[ "$DAY_OF_WEEK" == "4" ]]; then
-              echo "📅 Thursday detected - ONLY running 09:00 Norway time trigger (UTC 07)"
-              echo "☀️  Currently in CEST (Summer) - checking UTC hour 07 only"
-              if [[ "$UTC_HOUR" == "07" ]]; then
+              echo "📅 Thursday detected - ONLY running 04:00 Norway time trigger (UTC 02)"
+              echo "☀️  Currently in CEST (Summer) - checking UTC hour 02 only"
+              if [[ "$UTC_HOUR" == "02" ]]; then
                 RUN=true
-                REASON="UTC hour $UTC_HOUR matches Thursday 09:00 Norway time (CEST) - early window reset"
+                REASON="UTC hour $UTC_HOUR matches Thursday 04:00 Norway time (CEST) - early window start"
               else
-                REASON="UTC hour $UTC_HOUR does not match Thursday schedule (need 07 for 09:00 Norway time). Regular triggers (05:00, 10:00, 15:00) are disabled on Thursdays."
+                REASON="UTC hour $UTC_HOUR does not match Thursday schedule (need 02 for 04:00 Norway time). Regular triggers (05:00, 10:00, 15:00) are disabled on Thursdays."
               fi
             else
               echo "☀️  Currently in CEST (Summer) - checking UTC hours 03, 08, 13"
