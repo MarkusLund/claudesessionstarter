@@ -22,13 +22,15 @@ You must have **Claude Code installed locally** to do this.
 5. Follow the prompts to install/authorize the Claude GitHub App for your fork.
 6. If `/install-github-app` isn’t available, install the app manually at `https://github.com/apps/claude` instead (then proceed to add `ANTHROPIC_API_KEY` below).
 
-## 3) Add the required GitHub secret
+## 3) Check the required GitHub secret
 
 The workflow expects a repository secret named:
 
 - `ANTHROPIC_API_KEY`
 
-Add it in your fork:
+When you run `/install-github-app` in your fork, the setup flow will normally create this secret for you automatically using the key you provide.
+
+If you instead installed the Claude GitHub App manually (without `/install-github-app`), you’ll need to create it yourself:
 
 1. GitHub repo → `Settings`
 2. `Secrets and variables` → `Actions`
